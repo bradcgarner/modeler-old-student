@@ -1,10 +1,31 @@
 import json
+import math
 # that is like require(express)
 
 with open('inputs.json') as f:
   data = json.load(f)
 
-print(data['increments'])
+print('mins = 5: ',data['general']['intervalMins'])
+i = 2
+print('surfaces 2 runoff = 3: ',data['surfaces'][i]['runoff'])
+print('maxCapacityGsf = 0.50 ',data['product']['maxCapacityGsf'])
+rainRateIncrement = data['product']['efficiency']['rainRateIncrement']
+print('rainRateIncrement = 0.0007 ',rainRateIncrement)
+
+vwcIncrement = data['product']['efficiency']['vwcIncrement']
+print('vwcIncrement = 5: ',vwcIncrement)
+vwc = 22
+vwcGroup = math.floor(vwc/vwcIncrement) * vwcIncrement
+print('vwcGroup = 20: ', vwcGroup, ' from ', vwc)
+vwcSlot =  math.floor(vwc/vwcIncrement)
+print('vwcSlot = 4: ',vwcSlot)
+efficiencySlot = math.floor(0.0015/rainRateIncrement) -1
+print('efficiencySlot = 1: ',efficiencySlot)
+efficiency = data['product']['efficiency']['table'][vwcSlot][efficiencySlot]
+print('efficiency = 82: ',efficiency)
+
+
+
 
 class Surface:
   def __init__(self, ret):
@@ -14,6 +35,7 @@ class Surface:
   slope = 0.25
   cover = 'green roof'
   capacityTot = 4
+
 
   def perform(self, duration, rain, uncontrolled):
     # duration is minutes, 3 other args are volume in gals/minute
