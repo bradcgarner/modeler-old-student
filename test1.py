@@ -5,62 +5,80 @@ import math
 with open('inputs.json') as f:
   data = json.load(f)
 
-print('mins = 5: ',data['general']['intervalMins'])
-i = 2
-print('surfaces 2 runoff = 3: ',data['surfaces'][i]['runoff'])
-print('maxCapacityGsf = 0.50 ',data['product']['maxCapacityGsf'])
-rainRateIncrement = data['product']['efficiency']['rainRateIncrement']
-print('rainRateIncrement = 0.0007 ',rainRateIncrement)
-
-vwcIncrement = data['product']['efficiency']['vwcIncrement']
-print('vwcIncrement = 5: ',vwcIncrement)
-vwc = 22
-vwcGroup = math.floor(vwc/vwcIncrement) * vwcIncrement
-print('vwcGroup = 20: ', vwcGroup, ' from ', vwc)
-vwcSlot =  math.floor(vwc/vwcIncrement)
-print('vwcSlot = 4: ',vwcSlot)
-efficiencySlot = math.floor(0.0015/rainRateIncrement) -1
-print('efficiencySlot = 1: ',efficiencySlot)
-efficiency = data['product']['efficiency']['table'][vwcSlot][efficiencySlot]
-print('efficiency = 82: ',efficiency)
-
-
 
 
 class Surface:
-  def __init__(self, ret):
-    self.amc = ret
+  def __init__(self, duration,rainIntensityIncrement,vwcIncrement,product,capacity):
+    self.amc = 0  # antecedent moisture condition g/sf
+    self.duration = duration # minutes
+    self.rainIntensityIncrement = rainIntensityIncrement # g/sf/min
+    self.vwcIncrement = vwcIncrement # integer 0-100 (usually 5)
 
-  # variables below should read from another class 'covering'
-  slope = 0.25
-  cover = 'green roof'
-  capacityTot = 4
+    self.controlledLo = 0      # vwc (integer 0-100)
+    self.controlledHi = 70     # vwc (integer 0-100)
+    self.controlledRate = 0.05 # g/sf/min
+    
+    self.product = product     # index of product in array
+    self.capacity = capacity   # g/sf
 
 
-  def perform(self, duration, rain, uncontrolled):
-    # duration is minutes, 3 other args are volume in gals/minute
-    self.capacitySpare = self.capacityTot - self.amc
-    # duration, rain, uncontrolled, controlled cannot be negative numbers
-    self.duration = duration
-    self.rain = rain * duration
-    self.uncontrolled = uncontrolled * duration
-    # controlled needs a lookup table, factor in % of capacity, weather
-    controlledRaw = .05 * duration
+  print('duration = 5: ',self.duration)
+  print('capacity g/sf = 0.50 ',self.capacity)
+  print('rainRateIncrement = 0.0007 ',rainIntensityIncrement)
+  print('vwcIncrement = 5: ',self.vwcIncrement)
+
+  def cycle(self, rain, uncontrolled):
+    # rain, uncontrolled are volume in gals/sf/minute
+
+    # calculate capacity at start of cycle
+    capacitySpare = self.capacity - self.amc
+    vwc = math.floor((self.amc / self.capacity) * 100 )
+    vwcGroup = math.floor(vwc/vwcIncrement) * vwcIncrement
+    vwcSlot =  math.floor(vwc/vwcIncrement)
+    efficiencySlot = math.floor(0.0015/rainRateIncrement) -1
+    efficiency = data['system'][product]['efficiency'][vwcSlot][efficiencySlot]
+    print(' ')
+    print('INITIAL CAPACITY')
+    print('capacitySpare ', capacitySpare , ' = self.capacity ', self.capacity, ' - self.amc', self.amc)
+    print('vwcGroup: ', vwcGroup, ' from ', vwc)
+    print('vwcSlot: ',vwcSlot)
+    print('efficiencySlot = 1: ',efficiencySlot)
+    print('efficiency: ',efficiency)
+
+    # rain, uncontrolled cannot be negative numbers
+    self.rain = rain * self.duration
+    self.uncontrolled = uncontrolled * self.duration
+    print(' ')
+    print('UNCONTROLLED INPUTS')
+    print('rain', self.rain)
+    print('uncontrolled', self.uncontrolled)
+
+    # calculate controlled inputs, factor in weather later
     if self.rain > 0 or uncontrolled > 0:
       self.controlled = 0
-    elif controlledRaw > self.capacitySpare:
-      self.controlled = self.capacitySpare
+    elif vwc < self.controlledLo or vwc > self.controlledHi
+      self.controlled = 0
+    elif (self.controlledRate * self.duration) > self.capacitySpare
+      self.controlled = 0
     else:
-      self.controlled = controlledRaw
+      self.controlled = self.controlledRate * self.duration
+    print(' ')
+    print('CONTROLLED INPUTS')
+    print('controlled', self.controlled)
+
     self.input = self.rain + self.uncontrolled + self.controlled
     # if input <= capacity, absorb it all (add efficiency factor later)
-    if self.input <= self.capacitySpare:
+    if self.input <= capacitySpare:
       self.absorb = self.input
       self.runoff = 0 
     # if input > capacity, absorb to capacity, rest runs off (add eff. factor later)
     else:
       self.absorb = self.capacitySpare
       self.runoff = self.input - self.capacitySpare
+
+
+    print('surfaces 2 runoff = 3: ',data['surfaces'][i]['runoff'])
+    
     retPre = self.amc + self.absorb
     # et needs to refer to a lookup table
     etRaw = 0.05 * duration
@@ -74,11 +92,7 @@ class Surface:
       self.et = etRaw
     self.ret = retPre - self.et
     print(' ')
-    print('amc', self.amc)
-    print('spare capacity', self.capacitySpare)
     print('total input', self.input)
-    print('   rain', self.rain)
-    print('   uncontrolled', self.uncontrolled)
     print('   controlled', self.controlled)
     print('      raw controlled', controlledRaw)
     print('absorb', self.absorb)
@@ -93,28 +107,25 @@ class Surface:
 # accumulate total rain
 # create Cistern class to use for controlled release, accumulate release (can get into negative numbers for now)
 # create Offsite class to contain runoff, accumulate runoff
-surface1 = Surface(0.5)
 
-surface1.perform(5,0.3,0)
+duration =               data['general']['vwcIncrement']
+rainIntensityIncrement = data['general']['rainRateIncrement']
+vwcIncrement =           data['general']['vwcIncrement']
 
-surface1.perform(5,0.3,0)
+product =                0
+capacity =               data['system']['capacityGsf']
 
-surface1.perform(5,0.3,0)
+surface1 = Surface(duration,rainIntensityIncrement,vwcIncrement,product,capacity)
 
-surface1.perform(5,0.3,0)
-
-surface1.perform(50,0,0)
-
-surface1.perform(5,0,0)
-
-surface1.perform(15,0.1,0)
-
-surface1.perform(5,0,0)
-
-surface1.perform(35,0,0)
-
-surface1.perform(10,0,0)
-
-surface1.perform(10,0,0)
-
-surface1.perform(10,0,0)
+surface1.cycle(5,0.3,0)
+surface1.cycle(5,0.3,0)
+surface1.cycle(5,0.3,0)
+surface1.cycle(5,0.3,0)
+surface1.cycle(50,0,0)
+surface1.cycle(5,0,0)
+surface1.cycle(15,0.1,0)
+surface1.cycle(5,0,0)
+surface1.cycle(35,0,0)
+surface1.cycle(10,0,0)
+surface1.cycle(10,0,0)
+surface1.cycle(10,0,0)
