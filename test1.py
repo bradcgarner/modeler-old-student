@@ -21,7 +21,7 @@ class Surface:
     self.surfaceName =  surfaceName
     self.surface =      data['surfaces'][self.surfaceName] # key of product in array
     self.runoffToName = self.surface['runoff']
-    self.cdaName =      self.surface['cda']    # contributing drainage area, i.e. uncontrolled runoff from
+    self.cdaNames =     self.surface['cda']    # contributing drainage area, array, i.e. uncontrolled runoff from
     self.etTableName =  self.surface['etTable'] # which et table to use for this surface's exposure, # is array index
     self.productName =  self.surface['product']  # key of product in array
 
@@ -62,7 +62,7 @@ class Surface:
       'rainIntensityIncrement',
       'rainIntensityIncrements',
       '',
-      'cdaName',
+      'cdaNames',
       'controlledRate',
       'controlledLo',
       'controlledHi',
@@ -81,7 +81,7 @@ class Surface:
       self.rainIntensityIncrement,
       self.rainIntensityIncrements,
       '',
-      self.cdaName,
+      self.cdaNames,
       self.controlledRate,
       self.controlledLo,
       self.controlledHi,
@@ -130,7 +130,7 @@ class Surface:
     print('rainIntensityIncrement = 0.0007 ',self.rainIntensityIncrement)
     print('vwcIncrement = 5: ',self.vwcIncrement)
     print('runoffToName: ',self.runoffToName)
-    print('cdaFrom: ',self.cdaName)
+    print('cdaFrom: ',self.cdaNames)
     print('controlledLo: ',  self.controlledLo)
     print('controlledHi: ',  self.controlledHi)
     print('controlledRate: ',self.controlledRate)
@@ -162,7 +162,7 @@ class Surface:
     if intensityColumn > self.rainIntensityIncrements - 1:
       intensityColumn = self.rainIntensityIncrements - 1
     print('intensityColumn', intensityColumn)
-    print('uncontrolled', uncontrolled, ' from ', self.cdaName)
+    print('uncontrolled', uncontrolled, ' from ', self.cdaNames)
 
     efficiency = self.product['efficiency'][vwcRow][intensityColumn]
     print(' ')
@@ -352,4 +352,5 @@ for event in rainTable:
     with open(filename, 'a', newline='') as csvfile:
       modelwriter = csv.writer(csvfile, delimiter=',',
                               quotechar='|', quoting=csv.QUOTE_MINIMAL)
-      modelwriter.writerow(surfaces[surface].output)
+      display = ["%.4f" % x if isinstance(x, float) else x for x in surfaces[surface].output]
+      modelwriter.writerow(display)
