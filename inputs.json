@@ -1,14 +1,77 @@
 {
 	"general":{
-    "intervalMins":5,
+    "intervalMins": 5,
     "vwcIncrement": 5,
     "rainIntensityIncrement": 0.0007,
     "rainIntensityIncrements": 8
 	},
 	"surfaces": {
-		"ground": {
+		"one": {
+			"sf": 1000,
+			"cda": [null],
+			"runoff": "five",
+			"product": "purpleRoof",
+      "etTable": "sunny"
+		},
+		"two": {
+			"sf": 1000,
+			"cda": [null],
+			"runoff": "five",
+			"product": "purpleRoof",
+      "etTable": "sunny"
+		},
+		"three": {
+			"sf": 1000,
+			"cda": [null],
+			"runoff": "five",
+			"product": "purpleRoof",
+      "etTable": "sunny"
+		},
+		"four": {
+			"sf": 1000,
+			"cda": [null],
+			"runoff": "five",
+			"product": "purpleRoof",
+      "etTable": "sunny"
+		},
+		"seven": {
+			"sf": 4000,
+			"cda": [null],
+			"runoff": "cistern",
+			"product": "purpleRoof",
+      "etTable": "sunny"
+    },
+  	"eight": {
+			"sf": 4000,
+			"cda": [null],
+			"runoff": "nine",
+			"product": "purpleRoof",
+      "etTable": "sunny"
+		},
+    "five": {
+			"sf": 4000,
+			"cda": ["one", "two", "three", "four"],
+			"runoff": "six",
+			"product": "purpleRoof",
+      "etTable": "sunny"
+    },
+    "nine": {
+			"sf": 4000,
+			"cda": ["eight"],
+			"runoff": "ground",
+			"product": "purpleRoof",
+      "etTable": "sunny"
+    },
+    "six": {
+			"sf": 4000,
+			"cda": ["five"],
+			"runoff": "ground",
+			"product": "purpleRoof",
+      "etTable": "sunny"
+    },
+    "ground": {
 			"sf": 1,
-      "cda": ["four","six"],
+      "cda": ["six","nine"],
 			"runoff": null,
       "product": "ground",
       "etTable": null
@@ -19,48 +82,6 @@
 			"runoff": null,
 			"product": "cistern",
       "etTable": null
-		},
-		"two": {
-			"sf": 10000,
-			"cda": [null],
-			"runoff": "three",
-			"product": "purpleRoof",
-      "etTable": "sunny"
-		},
-		"three": {
-			"sf": 10000,
-			"cda": ["two"],
-			"runoff": "six",
-			"product": "purpleRoof",
-      "etTable": "sunny"
-		},
-		"four": {
-			"sf": 10000,
-			"cda": [null],
-			"runoff": "ground",
-			"product": "purpleRoof",
-      "etTable": "sunny"
-		},
-		"five": {
-			"sf": 10000,
-			"cda": [null],
-			"runoff": "six",
-			"product": "purpleRoof",
-      "etTable": "sunny"
-		},
-		"six": {
-			"sf": 10000,
-			"cda": ["two, five"],
-			"runoff": "ground",
-			"product": "purpleRoof",
-      "etTable": "sunny"
-		},
-		"seven": {
-			"sf": 10000,
-			"cda": [null],
-			"runoff": "cistern",
-			"product": "purpleRoof",
-      "etTable": "sunny"
 		}
   },
 	"products": {

@@ -6,14 +6,13 @@ import collections
 with open('inputs.json') as f:
   data = json.load(f)
 
-
 class Surface:
-  def __init__(self, duration,rainIntensityIncrement,rainIntensityIncrements,vwcIncrement,surfaceName):
+  def __init__(self, surfaceName):
     self.amc = 0  # antecedent moisture condition g/sf
-    self.duration = duration # minutes
-    self.rainIntensityIncrement = rainIntensityIncrement # g/sf/min, 0.0007, 0.0014, 0.0021
-    self.rainIntensityIncrements = rainIntensityIncrements # g/sf/min, 0.0007, 0.0014, 0.0021
-    self.vwcIncrement = vwcIncrement # integer 0-100 (usually 5)
+    self.duration =                data['general']['intervalMins'] # minutes
+    self.rainIntensityIncrement =  data['general']['rainIntensityIncrement']  # g/sf/min, 0.0007, 0.0014, 0.0021
+    self.rainIntensityIncrements = data['general']['rainIntensityIncrements'] # 8 from 0.0007 to 0.0056
+    self.vwcIncrement =            data['general']['vwcIncrement'] # integer 0-100 (usually 5)
 
     self.controlledLo = 0      # vwc (integer 0-100)
     self.controlledHi = 70     # vwc (integer 0-100)
@@ -120,51 +119,21 @@ class Surface:
     ]
 
   def cycle(self, rainIntensity, uncontrolled): # rain, uncontrolled are volume in gals/sf/minute
-    
-    print(' ')
-    print('INITIALIZE')
-    print('duration = 5: ',self.duration)
-    print('capacity g/sf = 0.50 ',self.capacity)
-    print('rainIntensityIncrement = 0.0007 ',self.rainIntensityIncrement)
-    print('vwcIncrement = 5: ',self.vwcIncrement)
-    print('runoffToName: ',self.runoffToName)
-    print('controlledLo: ',  self.controlledLo)
-    print('controlledHi: ',  self.controlledHi)
-    print('controlledRate: ',self.controlledRate)
-    print('month: ',self.month)
-    print('minutes: ',self.minutes)
-    print('minsMonth: ',self.minsMonth)
-    print('etTable:', self.etTable)
 
     # calculate capacity at start of cycle
     capacitySpare = self.capacity - self.amc
     vwc = int((self.amc / self.capacity) * 100 )
-    vwcGroupBy5 = int(vwc/vwcIncrement) * vwcIncrement
-    vwcRow =  int(vwc/vwcIncrement)
-    print(' ')
-    print('INITIAL CAPACITY')
-    print('capacitySpare ', capacitySpare , ' = self.capacity ', self.capacity, ' - self.amc', self.amc)
-    print('vwcGroupBy5 (5,10,15,...,100): ', vwcGroupBy5, ' from ', vwc)
-    print('vwcRow:(0-19) ', vwcRow)
+    vwcGroupBy5 = int(vwc/self.vwcIncrement) * self.vwcIncrement
+    vwcRow =  int(vwc/self.vwcIncrement)
 
     # rain, uncontrolled cannot be negative numbers
     self.rain = rainIntensity * self.duration
-    print(' ')
-    print('UNCONTROLLED INPUTS')
-
-    print('rain', self.rain)
-    print('rainIntensity', rainIntensity)
     
     intensityColumn = int(rainIntensity/self.rainIntensityIncrement) + 1 # start at 1, not 0
     if intensityColumn > self.rainIntensityIncrements - 1:
       intensityColumn = self.rainIntensityIncrements - 1
-    print('intensityColumn', intensityColumn)
-    print('uncontrolled', uncontrolled)
 
     efficiency = self.product['efficiency'][vwcRow][intensityColumn]
-    print(' ')
-    print('EFFICIENCY')
-    print('efficiency: ',efficiency)
 
     # calculate controlled inputs, factor in weather later
     if self.rain > 0 or uncontrolled > 0: # no controlled release during rain
@@ -175,14 +144,8 @@ class Surface:
       self.controlled = 0
     else:
       self.controlled = self.controlledRate * self.duration
-    print(' ')
-    print('CONTROLLED INPUTS')
-    print('controlled', self.controlled)
 
     self.input = self.rain + uncontrolled + self.controlled
-    print(' ')
-    print('TOTAL INPUTS')
-    print('input', self.input)
 
     if self.input <= capacitySpare:
       self.absorb = self.input * efficiency/100
@@ -192,15 +155,10 @@ class Surface:
 
     self.runoff = self.input - self.absorb
     retPre = self.amc + self.absorb
-    print(' ')
-    print('RETENTION & RUNOFF')
-    print('absorbtion' , self.absorb)
-    print('preliminary retention' , retPre)
-    print('runoff ', self.runoff, ' to ', self.runoffToName)
     
     hourColumn = int( (self.minutes %  self.minsDay) / self.minsEtColumn ) # calc which 2-hour column we are in
     etRate = self.etTable['table'][self.month][hourColumn] # gal/sf/min
-    etMax = etRate * duration # gal/sf/min
+    etMax = etRate * self.duration # gal/sf/min
     # no ET during rain
     if self.rain > 0:
       et = 0
@@ -208,18 +166,8 @@ class Surface:
       et = retPre  # ET cannot exceed retention... improve this... as vwc drops, et is more difficult to extract
     else:
       et = etMax
-    print(' ')
-    print('LOSSES')
-    print('effective date') # calculate this
-    print('hourColumn', hourColumn)
-    print('etRate', etRate)
-    print('etMax', etMax)
-    print('ET', et)
 
     self.ret = retPre - et
-    print(' ')
-    print('FINAL')
-    print('retention post ET', self.ret)
 
     self.output = [
       self.month,
@@ -251,14 +199,9 @@ class Surface:
       self.ret
     ]
 
-    self.minutes += duration
+    self.minutes += self.duration
     self.month = int(self.minutes/self.minsMonth)+1
     self.amc = self.ret
-    print(' ')
-    print('INCREMENT')
-    print('amc for next cycle', self.amc)
-    print('minutes for next cycle ', self.minutes)
-    print('month for next cycle ', self.month)
 
   def receive(self, uncontrolled): # uncontrolled volume in gals/sf/minute
     
@@ -288,7 +231,7 @@ class Surface:
       self.ret
     ]
 
-    self.minutes += duration
+    self.minutes += self.duration
     self.month = int(self.minutes/self.minsMonth)+1
     self.input = uncontrolled
 
@@ -301,33 +244,14 @@ class Surface:
 # create Cistern class to use for controlled release, accumulate release (can get into negative numbers for now)
 # create Offsite class to contain runoff, accumulate runoff
 
-duration =                data['general']['vwcIncrement']
-rainIntensityIncrement =  data['general']['rainIntensityIncrement']
-rainIntensityIncrements = data['general']['rainIntensityIncrements']
-vwcIncrement =            data['general']['vwcIncrement']
-surface =                 "two"
-
-
-print('duration', duration)
-print('rainIntensityIncrement', rainIntensityIncrement)
-print('vwcIncrement', vwcIncrement)
-print('surface', surface)
-
 # create and populate dictionary
 surfaces = {}
-
-for surface in data['surfaces']:
-  surfaces[surface] = Surface(duration,rainIntensityIncrement,rainIntensityIncrements,vwcIncrement,surface)
-  
 rainTable = data['events']['rainIntensity']
 
-print('XXXXXXXX')
-print(surfaces)
-print('XXXXXXXX')
+for surface in data['surfaces']:
+  surfaces[surface] = Surface(surface)
 
-# surface1 = Surface(duration,rainIntensityIncrement,rainIntensityIncrements,vwcIncrement,surface)
-
-# add header to one file for each surface
+# add header to file for each surface
 for surface in surfaces:
   filename = surface + 'Model.csv'
   with open(filename, 'w', newline='') as csvfile:
