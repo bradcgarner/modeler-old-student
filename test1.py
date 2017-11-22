@@ -1,6 +1,6 @@
 import json
 import math
-# that is like require(express)
+import csv
 
 with open('inputs.json') as f:
   data = json.load(f)
@@ -18,16 +18,17 @@ class Surface:
     self.controlledHi = 70     # vwc (integer 0-100)
     self.controlledRate = 0.05 # g/sf/min
     
-    self.surface =     data['surfaces'][surface] # key of product in array
-    self.runoffTo =    self.surface['runoff']
-    self.cda =         self.surface['cda']    # contributing drainage area, i.e. uncontrolled runoff from
-    self.etTableName = self.surface['etTable'] # which et table to use for this surface's exposure, # is array index
-    self.productName = self.surface['product']  # key of product in array
+    self.surfaceName =  surface
+    self.surface =      data['surfaces'][self.surfaceName] # key of product in array
+    self.runoffToName = self.surface['runoff']
+    self.cdaName =      self.surface['cda']    # contributing drainage area, i.e. uncontrolled runoff from
+    self.etTableName =  self.surface['etTable'] # which et table to use for this surface's exposure, # is array index
+    self.productName =  self.surface['product']  # key of product in array
 
-    self.product =     data['products'][self.productName]  # key of product in array
-    self.capacity =    self.product['capacityGsf']   # g/sf
+    self.product =      data['products'][self.productName]  # key of product in array
+    self.capacity =     self.product['capacityGsf']   # g/sf
     
-    self.etTable =     data['et'][self.etTableName]  # key of product in array
+    self.etTable =      data['et'][self.etTableName]  # key of product in array
 
     self.runoff = 0
 
@@ -37,6 +38,75 @@ class Surface:
     self.minsMonth = 30.5 * self.minsDay
     self.minsEtSlot = 120
 
+    self.output = []
+
+    self.initializeHeaderTitle = [
+      'Duration',
+      'rainIntensityIncrement',
+      'rainIntensityIncrements',
+      'vwcIncrement',
+
+      'controlledLo',
+      'controlledHi',
+      'controlledRate',
+    
+      'surfaceName',
+      'runoffToName',
+      'cdaName',
+      'etTableName',
+      'productName',
+
+      'capacity'
+    ]
+    self.initializeHeader = [
+      self.duration,
+      self.rainIntensityIncrement,
+      self.rainIntensityIncrements,
+      self.vwcIncrement,
+
+      self.controlledLo,
+      self.controlledHi,
+      self.controlledRate,
+    
+      self.surfaceName,
+      self.runoffToName,
+      self.cdaName,
+      self.etTableName,
+      self.productName,
+
+      self.capacity
+    ]
+    self.outputHeader = [
+      'month',
+      'minutes',
+
+      'amc',
+      'vwc',
+      'vwcGroupBy5',
+      'vwcRow',
+      'capacitySpare',
+
+      'rainIntensity',
+      'intensityColumn' ,
+      'rain',
+      'uncontrolled',
+      'controlled',
+      'input',
+  
+      'efficiency',
+      'absorb',
+      'runoff',
+      'retPre',
+        
+      'hourColumn',
+      'monthRow',
+      'etRate',
+      'etMax',
+      'et',
+
+      'ret'
+    ]
+
   def cycle(self, rainIntensity, uncontrolled):
     # rain, uncontrolled are volume in gals/sf/minute
 
@@ -44,10 +114,10 @@ class Surface:
     print('INITIALIZE')
     print('duration = 5: ',self.duration)
     print('capacity g/sf = 0.50 ',self.capacity)
-    print('rainIntensityIncrement = 0.0007 ',rainIntensityIncrement)
+    print('rainIntensityIncrement = 0.0007 ',self.rainIntensityIncrement)
     print('vwcIncrement = 5: ',self.vwcIncrement)
-    print('runoffTo: ',self.runoffTo)
-    print('cda: ',self.cda)
+    print('runoffToName: ',self.runoffToName)
+    print('cdaFrom: ',self.cdaName)
     print('controlledLo: ',  self.controlledLo)
     print('controlledHi: ',  self.controlledHi)
     print('controlledRate: ',self.controlledRate)
@@ -59,28 +129,27 @@ class Surface:
     # calculate capacity at start of cycle
     capacitySpare = self.capacity - self.amc
     vwc = int((self.amc / self.capacity) * 100 )
-    vwcGroup = int(vwc/vwcIncrement) * vwcIncrement
+    vwcGroupBy5 = int(vwc/vwcIncrement) * vwcIncrement
     vwcRow =  int(vwc/vwcIncrement)
     print(' ')
     print('INITIAL CAPACITY')
     print('capacitySpare ', capacitySpare , ' = self.capacity ', self.capacity, ' - self.amc', self.amc)
-    print('vwcGroup (5,10,15,...,100): ', vwcGroup, ' from ', vwc)
+    print('vwcGroupBy5 (5,10,15,...,100): ', vwcGroupBy5, ' from ', vwc)
     print('vwcRow:(0-19) ', vwcRow)
 
     # rain, uncontrolled cannot be negative numbers
     self.rain = rainIntensity * self.duration
-    self.uncontrolled = uncontrolled * self.duration
     print(' ')
     print('UNCONTROLLED INPUTS')
 
     print('rain', self.rain)
     print('rainIntensity', rainIntensity)
     
-    intensityColumn = int(rainIntensity/rainIntensityIncrement)
-    if intensityColumn > rainIntensityIncrements - 1:
-      intensityColumn = rainIntensityIncrements - 1
+    intensityColumn = int(rainIntensity/self.rainIntensityIncrement)
+    if intensityColumn > self.rainIntensityIncrements - 1:
+      intensityColumn = self.rainIntensityIncrements - 1
     print('intensityColumn', intensityColumn)
-    print('uncontrolled', self.uncontrolled)
+    print('uncontrolled', uncontrolled, ' from ', self.cdaName)
 
     efficiency = self.product['efficiency'][vwcRow][intensityColumn]
     print(' ')
@@ -100,7 +169,7 @@ class Surface:
     print('CONTROLLED INPUTS')
     print('controlled', self.controlled)
 
-    self.input = self.rain + self.uncontrolled + self.controlled
+    self.input = self.rain + uncontrolled + self.controlled
     print(' ')
     print('TOTAL INPUTS')
     print('input', self.input)
@@ -117,7 +186,7 @@ class Surface:
     print('RETENTION & RUNOFF')
     print('absorbtion' , self.absorb)
     print('preliminary retention' , retPre)
-    print('runoff ', self.runoff, ' to ', self.runoffTo)
+    print('runoff ', self.runoff, ' to ', self.runoffToName)
     
     hourColumn = int( (self.minutes %  self.minsDay) / self.minsEtSlot ) # calc which 2-hour column we are in
     monthRow = 6 # get from effective date
@@ -140,16 +209,47 @@ class Surface:
     print('ET', self.et)
 
     self.ret = retPre - self.et
-    self.amc = self.ret
     print(' ')
     print('FINAL')
     print('retention post ET', self.ret)
-    print('amc for next cycle', self.amc)
+
+    self.output = [
+      self.month,
+      self.minutes,
+
+      self.amc,
+      vwc,
+      vwcGroupBy5,
+      vwcRow,
+      capacitySpare,
+
+      rainIntensity,
+      intensityColumn,
+      self.rain,
+      uncontrolled,
+      self.controlled,
+      self.input,
+  
+      efficiency,
+      self.absorb,
+      self.runoff,
+      retPre,
+        
+      hourColumn,
+      monthRow,
+      etRate,
+      etMax,
+      self.et,
+
+      self.ret
+    ]
 
     self.minutes += duration
     self.month = int(self.minutes/self.minsMonth)+1
+    self.amc = self.ret
     print(' ')
     print('INCREMENT')
+    print('amc for next cycle', self.amc)
     print('minutes for next cycle ', self.minutes)
     print('month for next cycle ', self.month)
 
@@ -174,18 +274,23 @@ surface1 = Surface(duration,rainIntensityIncrement,rainIntensityIncrements,vwcIn
 
 rainTable = data['events']['rainIntensity']
 
-for event in rainTable:
-  surface1.cycle(event,0)
+# with open('model.csv', 'w', newline='') as csvfile:
+#     modelwriter = csv.writer(csvfile, delimiter=' ',
+#                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
+#     modelwriter.writerow(['Spam'] * 5 + ['Baked Beans'])
+#     modelwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
+
+# for event in rainTable:
+#   surface1.cycle(event,0)
 
 
-# surface1.cycle(5,0.3,0)
-# surface1.cycle(5,0.3,0)
-# surface1.cycle(5,0.3,0)
-# surface1.cycle(50,0,0)
-# surface1.cycle(5,0,0)
-# surface1.cycle(15,0.1,0)
-# surface1.cycle(5,0,0)
-# surface1.cycle(35,0,0)
-# surface1.cycle(10,0,0)
-# surface1.cycle(10,0,0)
-# surface1.cycle(10,0,0)
+with open('model.csv', 'w', newline='') as csvfile:
+    modelwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    modelwriter.writerow(surface1.initializeHeaderTitle)
+    modelwriter.writerow(surface1.initializeHeader)
+    modelwriter.writerow([])
+    modelwriter.writerow(surface1.outputHeader)
+    for event in rainTable:
+      surface1.cycle(event,0)
+      modelwriter.writerow(surface1.output)
