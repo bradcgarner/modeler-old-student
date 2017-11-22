@@ -1,7 +1,0 @@
-surfaceName,,productName
-seven,,purpleRoof
-
-Duration,,,capacity,vwcIncrement,,,rainIntensityIncrement,rainIntensityIncrements,,cdaName,controlledRate,controlledLo,controlledHi,,runoffToName,,,etTableName,minsEtColumn
-5,,,0.5,5,,,0.0007,8,,[None],0.05,0,70,,cistern,,,sunny,120
-
-month,minutes,amc,vwc,vwcGroupBy5,vwcRow,capacitySpare,rainIntensity,intensityColumn,rain,uncontrolled,controlled,input,efficiency,absorb,runoff,retPre,hourColumn,etRate,etMax,et,ret

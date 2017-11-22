@@ -53,7 +53,6 @@ class Surface:
       '',
       self.productName,
     ]
-
     self.initializeHeaderTitle = [
       'Duration',
       '','',
@@ -350,7 +349,7 @@ for event in rainTable:
       surfaces[surface].cycle(event,0)
     else:
       surfaces[surface].receive(0)
-    with open(filename, 'w', newline='') as csvfile:
+    with open(filename, 'a', newline='') as csvfile:
       modelwriter = csv.writer(csvfile, delimiter=',',
                               quotechar='|', quoting=csv.QUOTE_MINIMAL)
       modelwriter.writerow(surfaces[surface].output)
