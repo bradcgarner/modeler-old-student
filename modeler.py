@@ -2,6 +2,8 @@ import json
 import math
 import csv
 import collections
+import matplotlib.pyplot as plt
+import numpy as np
 
 with open('inputs.json') as f:
   data = json.load(f)
@@ -19,17 +21,17 @@ class Surface:
     self.controlledRate = 0.05 # g/sf/min
     
     self.surfaceName =  surfaceName
-    self.surface =      data['surfaces'][self.surfaceName] # key of product in array
+    self.surface =      data['surfaces'][self.surfaceName] # key of product in list
     self.runoffToName = self.surface['runoff']
-    self.etTableName =  self.surface['etTable'] # which et table to use for this surface's exposure, # is array index
-    self.productName =  self.surface['product']  # key of product in array
+    self.etTableName =  self.surface['etTable'] # which et table to use for this surface's exposure, # is list index
+    self.productName =  self.surface['product']  # key of product in list
 
-    self.product =      data['products'][self.productName]  # key of product in array
+    self.product =      data['products'][self.productName]  # key of product in list
     self.capacity =     self.product['capacityGsf']   # g/sf
     self.type =         self.product['type']
     
     if self.etTableName != None:
-      self.etTable =    data['et'][self.etTableName]  # key of product in array
+      self.etTable =    data['et'][self.etTableName]  # key of product in list
     else:
       self.etTable =    None
 
@@ -40,7 +42,26 @@ class Surface:
     self.minsDay = 24 * 60
     self.minsMonth = 30.5 * self.minsDay
     self.minsEtColumn = 120
-    self.output = []
+
+    self.rain = 0
+    self.rainTotal = 0
+    self.controlled = 0
+    self.controlledTotal = 0
+    self.uncontrolledTotal = 0
+    self.inputTotal = 0
+    self.runoffTotal = 0
+    self.et = 0
+    self.etTotal = 0
+    self.lossesTotal = 0
+
+    self.cycles = 0 # counts # of cycles
+    self.cyclesPerGraphOutput = 1 # 5 = combine 5 cycles into 1 output
+    self.rainList = [] # these lists are graphed
+    self.uncontrolledList = []
+    self.controlledList = []
+    self.retList = []
+    self.runoffList = []
+    self.etList = []
 
     self.idHeaderTitle = [
       'surfaceName',
@@ -115,7 +136,15 @@ class Surface:
       'etMax',
       'et',
 
-      'ret'
+      'ret',
+
+      'rainTotal',
+      'controlledTotal',
+      'uncontrolledTotal',
+      'inputTotal',
+      'runoffTotal',
+      'etTotal',
+      'lossesTotal',
     ]
 
   def cycle(self, rainIntensity, uncontrolled): # rain, uncontrolled are volume in gals/sf/minute
@@ -126,17 +155,12 @@ class Surface:
     vwcGroupBy5 = int(vwc/self.vwcIncrement) * self.vwcIncrement
     vwcRow =  int(vwc/self.vwcIncrement)
 
-    # rain, uncontrolled cannot be negative numbers
+    # calculate uncontrolled inputs (rain, uncontrolled); neither can be negative numbers
     self.rain = rainIntensity * self.duration
-    
-    intensityColumn = int(rainIntensity/self.rainIntensityIncrement) + 1 # start at 1, not 0
-    if intensityColumn > self.rainIntensityIncrements - 1:
-      intensityColumn = self.rainIntensityIncrements - 1
-
-    efficiency = self.product['efficiency'][vwcRow][intensityColumn]
+    self.uncontrolled = uncontrolled
 
     # calculate controlled inputs, factor in weather later
-    if self.rain > 0 or uncontrolled > 0: # no controlled release during rain
+    if self.rain > 0 or self.uncontrolled > 0: # no controlled release during rain
       self.controlled = 0
     elif (vwc < self.controlledLo) or (vwc > self.controlledHi): # no controlled release outside vwc parameters
       self.controlled = 0
@@ -145,30 +169,40 @@ class Surface:
     else:
       self.controlled = self.controlledRate * self.duration
 
-    self.input = self.rain + uncontrolled + self.controlled
+    self.input = self.rain + self.uncontrolled + self.controlled
 
+    # calculate efficiency of absorption
+    intensityColumn = int(rainIntensity/self.rainIntensityIncrement) + 1 # start at 1, not 0
+    if intensityColumn > self.rainIntensityIncrements - 1:
+      intensityColumn = self.rainIntensityIncrements - 1
+    efficiency = self.product['efficiency'][vwcRow][intensityColumn]
+
+    # calculate absorption
     if self.input <= capacitySpare:
       self.absorb = self.input * efficiency/100
-    # if input > capacity, absorb to capacity, rest runs off (add eff. factor later)
     else:
       self.absorb = 0
 
+    # calculate runoff
     self.runoff = self.input - self.absorb
     retPre = self.amc + self.absorb
     
+    # calculate ET
     hourColumn = int( (self.minutes %  self.minsDay) / self.minsEtColumn ) # calc which 2-hour column we are in
     etRate = self.etTable['table'][self.month][hourColumn] # gal/sf/min
     etMax = etRate * self.duration # gal/sf/min
     # no ET during rain
     if self.rain > 0:
-      et = 0
+      self.et = 0
     elif etMax > retPre:
-      et = retPre  # ET cannot exceed retention... improve this... as vwc drops, et is more difficult to extract
+      self.et = retPre  # ET cannot exceed retention... improve this... as vwc drops, et is more difficult to extract
     else:
-      et = etMax
+      self.et = etMax
 
-    self.ret = retPre - et
+    # finalize retention this cycle
+    self.ret = retPre - self.et
 
+    # output for csv
     self.output = [
       self.month,
       self.minutes,
@@ -182,7 +216,7 @@ class Surface:
       rainIntensity,
       intensityColumn,
       self.rain,
-      uncontrolled,
+      self.uncontrolled,
       self.controlled,
       self.input,
   
@@ -194,23 +228,31 @@ class Surface:
       hourColumn,
       etRate,
       etMax,
-      et,
+      self.et,
 
-      self.ret
+      self.ret,
+
+      self.rainTotal,
+      self.controlledTotal,
+      self.uncontrolledTotal,
+      self.inputTotal,
+      self.runoffTotal,
+      self.etTotal,
+      self.lossesTotal
     ]
 
-    self.minutes += self.duration
-    self.month = int(self.minutes/self.minsMonth)+1
-    self.amc = self.ret
+    # output for graph
+    self.populateGraphLists()
+
+    # increment for next cycle
+    self.increment()
 
   def receive(self, uncontrolled): # uncontrolled volume in gals/sf/minute
+    self.uncontrolled = uncontrolled
     
     capacitySpare = self.capacity - self.amc
-
-    self.input = uncontrolled
-    
+    self.input = self.uncontrolled
     self.absorb = self.input
-
     self.runoff = self.input - self.absorb
     self.ret = self.amc + self.absorb
     
@@ -221,7 +263,7 @@ class Surface:
       '','','',
       capacitySpare,
       '','','',
-      uncontrolled,
+      self.uncontrolled,
       '',
       self.input,
       '',
@@ -231,18 +273,52 @@ class Surface:
       self.ret
     ]
 
+    self.increment()
+
+  def populateGraphLists(self):
+    self.rainList.append(self.rain)
+    self.uncontrolledList.append(self.uncontrolled)
+    self.controlledList.append(self.controlled)
+    self.retList.append(self.ret)
+    self.runoffList.append(self.runoff)
+    self.etList.append(self.et)
+
+  def graphIt(self):
+    filename = self.surfaceName + 'Graph.png'
+    plt.figure(figsize=(14, 7)) # width, height of canvas
+    ax = plt.subplot(111) 
+    ax.set_aspect('auto')   
+
+    time = np.arange(len(self.rainList))
+
+    rain =         self.rainList
+    uncontrolled = self.uncontrolledList
+    controlled =   self.controlledList
+    runoff =       self.runoffList
+    et =           self.etList
+    ret =          self.retList
+
+    plt.plot(time,rain) # x,y
+    plt.plot(time,ret) # x,y
+
+    plt.xlabel('this is a xlabel\n(with newlines!)')
+    plt.ylabel('this is vertical\ntest', multialignment='center')
+    plt.grid(True)
+
+    plt.savefig(filename)
+  
+  def increment(self):
     self.minutes += self.duration
     self.month = int(self.minutes/self.minsMonth)+1
-    self.input = uncontrolled
+    self.amc = self.ret
+    self.rainTotal += self.rain
+    self.controlledTotal += self.controlled
+    self.uncontrolledTotal += self.uncontrolled
+    self.inputTotal += self.input
+    self.runoffTotal += self.runoff
+    self.etTotal += self.et
+    self.lossesTotal = self.runoffTotal + self.etTotal
 
-    # calculate capacity at start of cycle
-    capacitySpare = self.capacity - self.amc
-    vwc = int((self.amc / self.capacity) * 100 )
-
-# create a loop
-# accumulate total rain
-# create Cistern class to use for controlled release, accumulate release (can get into negative numbers for now)
-# create Offsite class to contain runoff, accumulate runoff
 
 # create and populate dictionary
 surfaces = {}
@@ -254,7 +330,7 @@ for surface in data['surfaces']:
 # add header to file for each surface
 for surface in surfaces:
   filename = surface + 'Model.csv'
-  with open(filename, 'w', newline='') as csvfile:
+  with open(filename, 'w') as csvfile:
     modelwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
     modelwriter.writerow(surfaces[surface].idHeaderTitle)
@@ -275,9 +351,13 @@ for event in rainTable:
       runoff[surfaces[surface].runoffToName] += surfaces[surface].runoff
     else:
       surfaces[surface].receive(runoff[surface])
-    with open(filename, 'a', newline='') as csvfile:
+    with open(filename, 'a') as csvfile:
       modelwriter = csv.writer(csvfile, delimiter=',',
                               quotechar='|', quoting=csv.QUOTE_MINIMAL)
       display = ["%.4f" % x if isinstance(x, float) else x for x in surfaces[surface].output]
       modelwriter.writerow(display)
 
+
+
+for surface in surfaces:
+  surfaces[surface].graphIt()
