@@ -4,6 +4,8 @@ import csv
 import collections
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.patches as mpatches
+
 
 with open('inputs.json') as f:
   data = json.load(f)
@@ -189,6 +191,7 @@ class Surface:
     
     # calculate ET
     hourColumn = int( (self.minutes %  self.minsDay) / self.minsEtColumn ) # calc which 2-hour column we are in
+    # print('month, hour', self.month, hourColumn)
     etRate = self.etTable['table'][self.month][hourColumn] # gal/sf/min
     etMax = etRate * self.duration # gal/sf/min
     # no ET during rain
@@ -285,12 +288,9 @@ class Surface:
 
   def graphIt(self):
     filename = self.surfaceName + 'Graph.png'
-    plt.figure(figsize=(14, 7)) # width, height of canvas
-    ax = plt.subplot(111) 
-    ax.set_aspect('auto')   
 
     time = np.arange(len(self.rainList))
-
+    # pass thru data now, later might aggregate into fewer points
     rain =         self.rainList
     uncontrolled = self.uncontrolledList
     controlled =   self.controlledList
@@ -298,18 +298,25 @@ class Surface:
     et =           self.etList
     ret =          self.retList
 
-    plt.plot(time,rain) # x,y
-    plt.plot(time,ret) # x,y
+    fig, ax = plt.subplots()
+    ax.plot(time,rain, 'C1',label='rain') # x,y
+    ax.plot(time,uncontrolled, 'C2',label='uncontrolled')
+    ax.plot(time,controlled, 'C3',label='controlled')
+    ax.plot(time,runoff, 'C4',label='runoff')
+    ax.plot(time,et, 'C5',label='et')
+    ax.plot(time,ret, 'C6',label='ret')
 
-    plt.xlabel('this is a xlabel\n(with newlines!)')
-    plt.ylabel('this is vertical\ntest', multialignment='center')
+    legend = ax.legend(loc='upper center', shadow=True)
+
+    plt.xlabel('time')
+    plt.ylabel('volume', multialignment='center')
     plt.grid(True)
 
     plt.savefig(filename)
   
   def increment(self):
     self.minutes += self.duration
-    self.month = int(self.minutes/self.minsMonth)+1
+    self.month = int(self.minutes/self.minsMonth)+1 # fix this to cycle or add cycler
     self.amc = self.ret
     self.rainTotal += self.rain
     self.controlledTotal += self.controlled
