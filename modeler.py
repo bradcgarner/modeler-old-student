@@ -16,7 +16,8 @@ class Surface:
     self.duration =                data['general']['intervalMins'] # minutes
     self.rainIntensityIncrement =  data['general']['rainIntensityIncrement']  # g/sf/min, 0.0007, 0.0014, 0.0021
     self.rainIntensityIncrements = data['general']['rainIntensityIncrements'] # 8 from 0.0007 to 0.0056
-    self.vwcIncrement =            data['general']['vwcIncrement'] # integer 0-100 (usually 5)
+    self.vwcIncrementEff =         data['general']['vwcIncrementEff'] # integer 0-100 (usually 5)
+    self.vwcIncrementEt =          data['general']['vwcIncrementEt'] # integer 0-100 (usually 10)
 
     self.controlledLo = 0      # vwc (integer 0-100)
     self.controlledHi = 70     # vwc (integer 0-100)
@@ -25,15 +26,16 @@ class Surface:
     self.surfaceName =  surfaceName
     self.surface =      data['surfaces'][self.surfaceName] # key of product in list
     self.runoffToName = self.surface['runoff']
-    self.etTableName =  self.surface['etTable'] # which et table to use for this surface's exposure, # is list index
+    self.etTableName =  self.surface['etTable']  # which et table to use for this surface's exposure, # is list index
     self.productName =  self.surface['product']  # key of product in list
+    self.area =         self.surface['area']     # units of area, integer, e.g. 5000
 
-    self.product =      data['products'][self.productName]  # key of product in list
-    self.capacity =     self.product['capacityGsf']   # g/sf
+    self.product =      data['products'][self.productName] # key of product in list
+    self.capacity =     self.product['capacity'] # volume per 1 unit of area 
     self.type =         self.product['type']
     
     if self.etTableName != None:
-      self.etTable =    data['et'][self.etTableName]  # key of product in list
+      self.etTable =    data['et'][self.etTableName] # key of product in list
     else:
       self.etTable =    None
 
@@ -77,9 +79,10 @@ class Surface:
     ]
     self.initializeHeaderTitle = [
       'Duration',
-      '','',
+      'Area',
+      '',
       'capacity',
-      'vwcIncrement',
+      'vwcIncrementEff',
       '','',
       'rainIntensityIncrement',
       'rainIntensityIncrements',
@@ -95,9 +98,10 @@ class Surface:
     ]
     self.initializeHeader = [
       self.duration,
-      '','',
+      self.area,
+      '',
       self.capacity,
-      self.vwcIncrement,
+      self.vwcIncrementEff,
       '','',
       self.rainIntensityIncrement,
       self.rainIntensityIncrements,
@@ -117,8 +121,8 @@ class Surface:
 
       'amc',
       'vwc',
-      'vwcGroupBy5',
-      'vwcRow',
+      'vwcGroupEff',
+      'vwcRowEff',
       'capacitySpare',
 
       'rainIntensity',
@@ -131,8 +135,11 @@ class Surface:
       'efficiency',
       'absorb',
       'runoff',
+      'runoffRawVol',
       'retPre',
-        
+      
+      'vwcGroupEt',
+      'vwcRowEt',
       'hourColumn',
       'etRate',
       'etMax',
@@ -149,17 +156,18 @@ class Surface:
       'lossesTotal',
     ]
 
-  def cycle(self, rainIntensity, uncontrolled): # rain, uncontrolled are volume in gals/sf/minute
+  def cycle(self, rainIntensity, uncontrolledRawVol): # rain, uncontrolled are volume in gals/sf/minute
 
     # calculate capacity at start of cycle
     capacitySpare = self.capacity - self.amc
     vwc = int((self.amc / self.capacity) * 100 )
-    vwcGroupBy5 = int(vwc/self.vwcIncrement) * self.vwcIncrement
-    vwcRow =  int(vwc/self.vwcIncrement)
-
+    vwcGroupEff = int(vwc/self.vwcIncrementEff) * self.vwcIncrementEff
+    vwcRowEff =   int(vwc/self.vwcIncrementEff)
+    vwcGroupEt =  int(vwc/self.vwcIncrementEt)  * self.vwcIncrementEt
+    vwcRowEt =    int(vwc/self.vwcIncrementEt)
     # calculate uncontrolled inputs (rain, uncontrolled); neither can be negative numbers
     self.rain = rainIntensity * self.duration
-    self.uncontrolled = uncontrolled
+    self.uncontrolled = uncontrolledRawVol / self.area
 
     # calculate controlled inputs, factor in weather later
     if self.rain > 0 or self.uncontrolled > 0: # no controlled release during rain
@@ -177,7 +185,7 @@ class Surface:
     intensityColumn = int(rainIntensity/self.rainIntensityIncrement) + 1 # start at 1, not 0
     if intensityColumn > self.rainIntensityIncrements - 1:
       intensityColumn = self.rainIntensityIncrements - 1
-    efficiency = self.product['efficiency'][vwcRow][intensityColumn]
+    efficiency = self.product['efficiency'][vwcRowEff][intensityColumn]
 
     # calculate absorption
     if self.input <= capacitySpare:
@@ -187,12 +195,13 @@ class Surface:
 
     # calculate runoff
     self.runoff = self.input - self.absorb
+    self.runoffRawVol = self.runoff * self.area
     retPre = self.amc + self.absorb
     
     # calculate ET
     hourColumn = int( (self.minutes %  self.minsDay) / self.minsEtColumn ) # calc which 2-hour column we are in
     # print('month, hour', self.month, hourColumn)
-    etRate = self.etTable['table'][self.month][hourColumn] # gal/sf/min
+    etRate = self.etTable['table'][self.month][vwcRowEt][hourColumn] # gal/sf/min
     etMax = etRate * self.duration # gal/sf/min
     # no ET during rain
     if self.rain > 0:
@@ -212,8 +221,8 @@ class Surface:
 
       self.amc,
       vwc,
-      vwcGroupBy5,
-      vwcRow,
+      vwcGroupEff,
+      vwcRowEff,
       capacitySpare,
 
       rainIntensity,
@@ -226,8 +235,11 @@ class Surface:
       efficiency,
       self.absorb,
       self.runoff,
+      self.runoffRawVol,
       retPre,
         
+      vwcGroupEff,
+      vwcRowEff,
       hourColumn,
       etRate,
       etMax,
@@ -246,7 +258,6 @@ class Surface:
 
     # output for graph
     self.populateGraphLists()
-
     # increment for next cycle
     self.increment()
 
@@ -276,6 +287,9 @@ class Surface:
       self.ret
     ]
 
+    # output for graph
+    self.populateGraphLists()
+    # increment for next cycle
     self.increment()
 
   def populateGraphLists(self):
@@ -298,7 +312,7 @@ class Surface:
     et =           self.etList
     ret =          self.retList
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots() # ax = plt.subplots()[1] instead of fix... investigate...
     ax.plot(time,rain, 'C1',label='rain') # x,y
     ax.plot(time,uncontrolled, 'C2',label='uncontrolled')
     ax.plot(time,controlled, 'C3',label='controlled')
@@ -355,7 +369,7 @@ for event in rainTable:
     filename = surface + 'Model.csv'
     if surfaces[surface].type != 'receiving':
       surfaces[surface].cycle(event,runoff[surface])
-      runoff[surfaces[surface].runoffToName] += surfaces[surface].runoff
+      runoff[surfaces[surface].runoffToName] += surfaces[surface].runoffRawVol
     else:
       surfaces[surface].receive(runoff[surface])
     with open(filename, 'a') as csvfile:
