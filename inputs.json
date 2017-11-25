@@ -1,14 +1,18 @@
 {
 	"general":{
     "intervalMins": 5,
+    "eventGapThreshold": 480,
     "vwcIncrementEff": 5,
     "vwcIncrementEt": 10,
-    "readMe": "2 units: area and volume: All measurements and calculations use only 1 unit of area (usually sf) and 1 unit of volume (usually gallons). The data may be provided in other units interchangably.  Since there is no conversion between units, any units may be used.  If unit conversions are desired, those should happen in outside the calculations, either in the UI, or in separate functions after core calculation functions (e.g. convert output to mm after generating output). Thickness is only used for identification, not calculations. Capacity is a unit of volume over 1 unit of area.",
+    "readMe": "2 units: area and volume: All measurements and calculations use only 1 unit of area (usually sf) and 1 unit of volume (usually gallons). The data may be provided in other units interchangably.  Since there is no conversion between units, any units may be used.  If unit conversions are desired, those should happen in outside the calculations, either in the UI, or in separate functions after core calculation functions (e.g. convert output to mm after generating output). Thickness is only used for identification, not calculations. Capacity is a unit of volume over 1 unit of area. controlledRate is volume/minute, controlledHi & Lo are percentage brackets (as integer 0-100) between which controlled flow will be released. A controlledRate of 0.009 roughly equals a 2-inch rain per day; low-moderate irrigation rate.",
     "area": "sf",
     "volume": "gals",
-    "rainIntensityIncrement": 0.0004,
+    "rainIntensityIncrement": 0.0009,
     "rainIntensityIncrements": 8,
-    "thickness": "inches"
+    "thickness": "inches",
+    "controlledRate": 0.002,
+    "controlledHi": 70,
+    "controlledLo": 0
 	},
 	"surfaces": {
 		"one": {
