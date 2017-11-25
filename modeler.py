@@ -6,12 +6,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as mpatches
 
-
 with open('inputs.json') as f:
   data = json.load(f)
 
 class Event:
   def __init__(self, surface):
+    self.surfaceName = surface.surfaceName
+    self.eventNum = surface.eventNum
+
     self.rain = surface.eventTotalRain
     self.uncontrolled = surface.eventTotalUncontrolled
     self.controlled = surface.eventTotalControlled
@@ -19,21 +21,65 @@ class Event:
     self.runoff = surface.eventTotalRunoff
     self.et = surface.eventTotalEt
     
-    self.thresholdMet = surface.eventThresholdMet
+    self.threshold = surface.eventThreshold
 
-    self.retLast = surface.eventRetLast
+    self.retB4Threshold = surface.eventRetB4Threshold
+    self.retAtThreshold = surface.eventRetAtThreshold
 
     self.start = surface.eventStart
-    self.retStart = surface.eventRetStart
+    self.startRet = surface.eventStartRet
     self.end = surface.eventEnd
-    self.retEnd = surface.eventRetEnd
+    self.endRet = surface.eventEndRet
+
+  def formatEventSummaries(self):
+    # add more here related to analysis
+    self.input = self.rain + self.uncontrolled + self.controlled
+
+    self.eventSummaryHeader = [
+      'surfaceName', 
+      'eventNum',
+      'rain',
+      'uncontrolled',
+      'controlled',
+      'input',
+      'absorb',
+      'runoff',
+      'et',
+    
+      'start',
+      'startRet (retention at start of event)',
+      'thresholdmet',
+      'retB4Threshold (retention at last drop of rain)',
+      'retAtThreshold (retention at threshold)',
+      'end',
+      'endRet (retention at end of event, including dry-down period)'
+    ]
+    self.eventSummary = [
+      self.surfaceName, 
+      self.eventNum,
+      self.rain,
+      self.uncontrolled,
+      self.controlled,
+      self.input,
+      self.absorb,
+      self.runoff,
+      self.et,
+
+      self.start,
+      self.startRet,
+      self.threshold,
+      self.retB4Threshold,
+      self.retAtThreshold,
+      self.end,
+      self.endRet
+    ]
 
 
 class Surface:
   def __init__(self, surfaceName):
     self.amc = 0  # antecedent moisture condition g/sf
     self.duration =                data['general']['intervalMins'] # minutes
-    self.eventStopThreshold =     data['general']['eventGapThreshold'] # integer of minimum minutes between rain events; e.g. 480 = 8 hours
+    self.eventStopThreshold =  int(data['general']['eventGapThreshold']/self.duration) # integer of minimum minutes between rain events; e.g. 480 = 8 hours
     self.rainIntensityIncrement =  data['general']['rainIntensityIncrement']  # g/sf/min, 0.0007, 0.0014, 0.0021
     self.rainIntensityIncrements = data['general']['rainIntensityIncrements'] # 8 from 0.0007 to 0.0056
     self.vwcIncrementEff =         data['general']['vwcIncrementEff'] # integer 0-100 (usually 5)
@@ -109,14 +155,14 @@ class Surface:
     self.eventTotalRunoff = 0
     self.eventTotalEt = 0
     
-    self.eventThresholdMet = 0
-
-    self.eventRetLast = 0
+    self.eventThreshold = 0
+    self.eventRetB4Threshold = 0
+    self.eventRetAtThreshold = 0
 
     self.eventStart = 0
-    self.eventRetStart = 0
+    self.eventStartRet = 0
     self.eventEnd = None
-    self.eventRetEnd = None
+    self.eventEndRet = None
 
     self.events = {}
 
@@ -362,13 +408,15 @@ class Surface:
     # increment for next cycle
     self.increment()
 
-  def resetEventTotals(self):
+  def captureEventTotals(self):
     # save the prior event as an object in the events dictionary
-    self.eventTotalEnd = self.minutes - self.duration
-    self.eventTotalRetEnd = self.ret
-    self.events[self.eventNum] = Event(self)
-
-    # reset totals
+    self.eventEnd = self.minutes
+    self.eventEndRet = self.ret
+    eventNameNum = self.surfaceName + str(self.eventNum)
+    if self.eventNum > 0:
+      self.events[eventNameNum] = Event(self)
+  
+  def resetEventTotals(self):
     self.eventTotalRain = self.rain
     self.eventTotalUncontrolled = self.uncontrolled
     self.eventTotalControlled = self.controlled
@@ -376,12 +424,12 @@ class Surface:
     self.eventTotalRunoff = self.runoff
     self.eventTotalEt = self.et
 
-    self.eventThresholdMet = None  # mark spot where threshold was met
+    self.eventThreshold = None  # mark spot where threshold was met
 
     self.eventStart = self.minutes
-    self.eventRetStart = self.ret
+    self.eventStartRet = self.ret
     self.eventEnd = None
-    self.eventRetEnd = None
+    self.eventEndRet = None
 
   def incrementEventTotals(self):
     self.eventTotalRain += self.rain
@@ -392,36 +440,53 @@ class Surface:
     self.eventTotalEt += self.et
   
   def eventCalcs(self):
-    if self.rain > 0 and self.eventStatus == 'stop': # false alarm, event not over
-      self.eventStopCounter = 0
+    if self.rain > 0:
+      if self.eventStatus == 'dry': # just started raining
+        self.eventTotalStop = self.minutes - self.duration
+        self.captureEventTotals()
+        self.resetEventTotals()
+        self.eventNum += 1
+      else:                         # if 'stop' or if keeps raining
+        self.incrementEventTotals()
       self.eventStatus = 'rain'
-      self.incrementEventTotals()
-    elif self.rain > 0 and self.eventStatus == 'dry': # just started raining
-      self.eventTotalStop = self.minutes - self.duration
-      self.resetEventTotals()
-      self.eventNum += 2
-      self.eventTotalStatus = 'rain'
-    elif self.rain > 0:                              # keeps raining
-      self.eventStatus = 'rain'
+      self.eventRetB4Threshold = self.ret
       self.eventStopCounter = 0
+    # no rain below here
+    elif self.eventStatus == 'stop':
+      if self.eventStopCounter >= self.eventStopThreshold: 
+        self.eventStopCounter = 0                     # has stopped, just met threshold
+        self.eventStatus = 'dry'
+        self.eventThreshold = self.minutes
+        self.eventRetAtThreshold = self.ret
+
+      if self.eventStopCounter >= 0:                   # recently stopped
+        self.eventStopCounter += self.duration 
       self.incrementEventTotals()
-    elif self.eventStatus == 'stop' and self.eventStopCounter >= self.eventStopThreshold: 
-      self.eventStopCounter = 0                     # has stopped, just met threshold
-      self.eventStatus = 'dry'
-      self.eventThresholdMet = self.minutes
-      self.incrementEventTotals()
-    elif self.eventStatus == 'stop' and self.eventStopCounter >= 0: 
-      self.eventStopCounter += self.duration       # recently stopped
-      self.incrementEventTotals()
+    
     elif self.eventStatus == 'rain':                # just stopped raining
       self.eventStopCounter = 0
       self.eventStatus = 'stop'
-      self.eventTotalRetLast = self.ret
+      self.eventRetB4Threshold = self.ret
       self.incrementEventTotals()
     else:
       self.eventStopCounter = 0                     # been dry longer than threshold
       self.eventStatus = 'dry'
       self.incrementEventTotals()
+
+  def increment(self):
+    self.minutes += self.duration
+    self.month = int(self.minutes/self.minsMonth)+1 # fix this to cycle or add cycler
+
+    self.amc = self.ret
+
+    self.rainTotal += self.rain
+    self.controlledTotal += self.controlled
+    self.uncontrolledTotal += self.uncontrolled
+    self.inputTotal += self.input
+    self.absorbTotal += self.absorb
+    self.runoffTotal += self.runoff
+    self.etTotal += self.et
+    self.lossesTotal = self.runoffTotal + self.etTotal
 
   def populateGraphLists(self):
     self.eaListRain.append(self.rain)
@@ -440,8 +505,7 @@ class Surface:
     self.totListRunoff.append(self.eventTotalRunoff)
     self.totListEt.append(self.eventTotalEt)
 
-  def graphIt(self):
-
+  def outputGraphs(self):
     filename = self.surfaceName + 'Graph.png'
 
     time = np.arange(len(self.eaListRain))
@@ -471,22 +535,19 @@ class Surface:
     plt.grid(True)
 
     plt.savefig(filename)
-  
-  def increment(self):
-    self.minutes += self.duration
-    self.month = int(self.minutes/self.minsMonth)+1 # fix this to cycle or add cycler
 
-    self.amc = self.ret
-
-    self.rainTotal += self.rain
-    self.controlledTotal += self.controlled
-    self.uncontrolledTotal += self.uncontrolled
-    self.inputTotal += self.input
-    self.absorbTotal += self.absorb
-    self.runoffTotal += self.runoff
-    self.etTotal += self.et
-    self.lossesTotal = self.runoffTotal + self.etTotal
-
+  def outputEventTables(self):
+    filename = self.surfaceName + 'Events.csv'
+    with open(filename, 'w') as csvfile:
+      eventwriter = csv.writer(csvfile, delimiter=',',
+                              quotechar='|', quoting=csv.QUOTE_MINIMAL)
+      counter = 0
+      for event in self.events:
+        self.events[event].formatEventSummaries()
+        counter += 1
+        if counter == 1:
+          eventwriter.writerow(self.events[event].eventSummaryHeader)
+        eventwriter.writerow(self.events[event].eventSummary)
 
 # create and populate dictionary
 surfaces = {}
@@ -524,8 +585,10 @@ for event in rainTable:
                               quotechar='|', quoting=csv.QUOTE_MINIMAL)
       display = ["%.4f" % x if isinstance(x, float) else x for x in surfaces[surface].output]
       modelwriter.writerow(display)
-
-
+  for surface in surfaces:
+    surfaces[surface].captureEventTotals() # captures the final event
 
 for surface in surfaces:
-  surfaces[surface].graphIt()
+  surfaces[surface].outputGraphs()
+  surfaces[surface].outputEventTables()
+    
