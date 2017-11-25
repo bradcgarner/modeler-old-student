@@ -14,64 +14,124 @@ class Event:
     self.surfaceName = surface.surfaceName
     self.eventNum = surface.eventNum
 
-    self.rain = surface.eventTotalRain
+    self.rain =         surface.eventTotalRain
     self.uncontrolled = surface.eventTotalUncontrolled
-    self.controlled = surface.eventTotalControlled
-    self.absorb = surface.eventTotalAbsorb
-    self.runoff = surface.eventTotalRunoff
-    self.et = surface.eventTotalEt
+    self.controlled =   surface.eventTotalControlled
+    self.absorb =       surface.eventTotalAbsorb
+    self.runoff =       surface.eventTotalRunoff
+    self.et =           surface.eventTotalEt
     
-    self.threshold = surface.eventThreshold
-
-    self.retB4Threshold = surface.eventRetB4Threshold
-    self.retAtThreshold = surface.eventRetAtThreshold
-
-    self.start = surface.eventStart
-    self.startRet = surface.eventStartRet
-    self.end = surface.eventEnd
-    self.endRet = surface.eventEndRet
+    self.start =        surface.eventStart
+    self.retStart =     surface.eventRetStart
+    self.stop =         surface.eventStop
+    self.retStop =      surface.eventRetStop
+    self.threshold =    surface.eventThreshold
+    self.retThreshold = surface.eventRetThreshold
+    self.end =          surface.eventEnd
+    self.retEnd =       surface.eventRetEnd
 
   def formatEventSummaries(self):
     # add more here related to analysis
     self.input = self.rain + self.uncontrolled + self.controlled
+    pctAbsorbed = self.absorb / self.input
+    pctRunoff = self.runoff / self.input
+    pctEt = self.et / self.input
+
+    retDeltaRain = self.retStop - self.retStart
+    minsDeltaRain = self.threshold - self.start
+    retRateRain = retDeltaRain / minsDeltaRain
+
+    retDeltaInitDry = self.retStop - self.retThreshold
+    minsDeltaInitDry = self.threshold - self.stop
+    retRateInitDry = retDeltaInitDry / minsDeltaInitDry
+
+    retDeltaLaterDry = self.retThreshold - self.retEnd
+    minsDeltaLaterDry = self.end - self.threshold
+    retRateLaterDry = retDeltaLaterDry / minsDeltaLaterDry
+
+    rainRate = self.rain / minsDeltaRain
+    duration = self.end - self.start
 
     self.eventSummaryHeader = [
       'surfaceName', 
       'eventNum',
+      'duration',
       'rain',
+      'rainRate',
       'uncontrolled',
       'controlled',
       'input',
       'absorb',
+      'pctAbsorbed',
       'runoff',
+      'pctRunoff',
       'et',
-    
+      'pctEt',
+
       'start',
-      'startRet (retention at start of event)',
-      'thresholdmet',
-      'retB4Threshold (retention at last drop of rain)',
-      'retAtThreshold (retention at threshold)',
+      'retStart',
+
+      'retDeltaRain',
+      'minsDeltaRain',
+      'retRateRain',
+
+      'stop',
+      'retStop',
+
+      'retDeltaInitDry',
+      'minsDeltaInitDry',
+      'retRateInitDry',
+
+      'threshold',
+      'retThreshold',
+
+      'retDeltaLaterDry',
+      'minsDeltaLaterDry',
+      'retRateLaterDry',
+
       'end',
-      'endRet (retention at end of event, including dry-down period)'
+      'retEnd'
     ]
     self.eventSummary = [
       self.surfaceName, 
       self.eventNum,
+      duration,
       self.rain,
+      rainRate,
       self.uncontrolled,
       self.controlled,
       self.input,
       self.absorb,
+      pctAbsorbed,
       self.runoff,
+      pctRunoff,
       self.et,
+      pctEt,
 
       self.start,
-      self.startRet,
+      self.retStart,
+
+      retDeltaRain,
+      minsDeltaRain,
+      retRateRain,
+
+      self.stop,
+      self.retStop,
+
+      retDeltaInitDry,
+      minsDeltaInitDry,
+      retRateInitDry,
+
       self.threshold,
-      self.retB4Threshold,
-      self.retAtThreshold,
+      self.retThreshold,
+
+      retDeltaLaterDry,
+      minsDeltaLaterDry,
+      retRateLaterDry,
+
       self.end,
-      self.endRet
+      self.retEnd
+
     ]
 
 
@@ -156,13 +216,13 @@ class Surface:
     self.eventTotalEt = 0
     
     self.eventThreshold = 0
-    self.eventRetB4Threshold = 0
-    self.eventRetAtThreshold = 0
+    self.eventRetStop = 0
+    self.eventRetThreshold = 0
 
     self.eventStart = 0
-    self.eventStartRet = 0
+    self.eventRetStart = 0
     self.eventEnd = None
-    self.eventEndRet = None
+    self.eventRetEnd = None
 
     self.events = {}
 
@@ -411,7 +471,7 @@ class Surface:
   def captureEventTotals(self):
     # save the prior event as an object in the events dictionary
     self.eventEnd = self.minutes
-    self.eventEndRet = self.ret
+    self.eventRetEnd = self.ret
     eventNameNum = self.surfaceName + str(self.eventNum)
     if self.eventNum > 0:
       self.events[eventNameNum] = Event(self)
@@ -424,12 +484,14 @@ class Surface:
     self.eventTotalRunoff = self.runoff
     self.eventTotalEt = self.et
 
-    self.eventThreshold = None  # mark spot where threshold was met
-
     self.eventStart = self.minutes
-    self.eventStartRet = self.ret
+    self.eventRetStart = self.ret
+    self.eventStop = None
+    self.eventRetStop = None
+    self.eventThreshold = None  
+    self.eventRetThreshold = None
     self.eventEnd = None
-    self.eventEndRet = None
+    self.eventRetEnd = None
 
   def incrementEventTotals(self):
     self.eventTotalRain += self.rain
@@ -449,7 +511,8 @@ class Surface:
       else:                         # if 'stop' or if keeps raining
         self.incrementEventTotals()
       self.eventStatus = 'rain'
-      self.eventRetB4Threshold = self.ret
+      self.eventStop = self.minutes
+      self.eventRetStop = self.ret
       self.eventStopCounter = 0
     # no rain below here
     elif self.eventStatus == 'stop':
@@ -457,7 +520,7 @@ class Surface:
         self.eventStopCounter = 0                     # has stopped, just met threshold
         self.eventStatus = 'dry'
         self.eventThreshold = self.minutes
-        self.eventRetAtThreshold = self.ret
+        self.eventRetThreshold = self.ret
 
       if self.eventStopCounter >= 0:                   # recently stopped
         self.eventStopCounter += self.duration 
@@ -466,7 +529,8 @@ class Surface:
     elif self.eventStatus == 'rain':                # just stopped raining
       self.eventStopCounter = 0
       self.eventStatus = 'stop'
-      self.eventRetB4Threshold = self.ret
+      self.eventStop = self.minutes
+      self.eventRetStop = self.ret
       self.incrementEventTotals()
     else:
       self.eventStopCounter = 0                     # been dry longer than threshold
