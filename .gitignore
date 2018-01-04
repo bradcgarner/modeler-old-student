@@ -1,2 +1,6 @@
 *.csv
 *.png
+/env
+/prior-plots
+/testplots
+/graphs*
