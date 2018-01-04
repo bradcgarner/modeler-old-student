@@ -4,12 +4,13 @@
     "eventGapThreshold": 480,
     "vwcIncrementEff": 5,
     "vwcIncrementEt": 10,
+    "rainIntensityIncrement": 0.0009,
+    "rainIntensityIncrements": 8,
     "readMe": "2 units: area and volume: All measurements and calculations use only 1 unit of area (usually sf) and 1 unit of volume (usually gallons). The data may be provided in other units interchangably.  Since there is no conversion between units, any units may be used.  If unit conversions are desired, those should happen in outside the calculations, either in the UI, or in separate functions after core calculation functions (e.g. convert output to mm after generating output). Thickness is only used for identification, not calculations. Capacity is a unit of volume over 1 unit of area. controlledRate is volume/minute, controlledHi & Lo are percentage brackets (as integer 0-100) between which controlled flow will be released. A controlledRate of 0.009 roughly equals a 2-inch rain per day; low-moderate irrigation rate.",
     "area": "sf",
     "volume": "gals",
-    "rainIntensityIncrement": 0.0009,
-    "rainIntensityIncrements": 8,
     "thickness": "inches",
+
     "controlledRate": 0.002,
     "controlledHi": 70,
     "controlledLo": 0
@@ -19,103 +20,111 @@
 			"area": 1000,
 			"cda": [null],
 			"runoff": "five",
-			"product": "purpleRoof",
-      "etTable": "sunny"
+			"product": "3",
+      "etTable": "0"
 		},
 		"two": {
 			"area": 1000,
 			"cda": [null],
 			"runoff": "five",
-			"product": "purpleRoof",
-      "etTable": "sunny"
+			"product": "3",
+      "etTable": "0"
 		},
 		"three": {
 			"area": 1000,
 			"cda": [null],
 			"runoff": "five",
-			"product": "purpleRoof",
-      "etTable": "sunny"
+			"product": "3",
+      "etTable": "0"
 		},
 		"four": {
 			"area": 1000,
 			"cda": [null],
 			"runoff": "five",
-			"product": "purpleRoof",
-      "etTable": "sunny"
+			"product": "3",
+      "etTable": "0"
 		},
 		"seven": {
 			"area": 2200,
 			"cda": [null],
 			"runoff": "cistern",
-			"product": "purpleRoof",
-      "etTable": "sunny"
+			"product": "3",
+      "etTable": "0"
     },
   	"eight": {
 			"area": 2200,
 			"cda": [null],
 			"runoff": "nine",
-			"product": "purpleRoof",
-      "etTable": "sunny"
+			"product": "3",
+      "etTable": "0"
 		},
     "five": {
 			"area": 5500,
 			"cda": ["one", "two", "three", "four"],
 			"runoff": "six",
-			"product": "purpleRoof",
-      "etTable": "sunny"
+			"product": "3",
+      "etTable": "0"
     },
     "nine": {
 			"area": 700,
 			"cda": ["eight"],
-			"runoff": "ground",
-			"product": "purpleRoof",
-      "etTable": "sunny"
+			"runoff": "0",
+			"product": "3",
+      "etTable": "0"
     },
     "six": {
 			"area": 1200,
 			"cda": ["five"],
 			"runoff": "ground",
-			"product": "purpleRoof",
-      "etTable": "sunny"
+			"product": "3",
+      "etTable": "0"
     },
     "ground": {
 			"area": 1,
       "cda": ["six","nine"],
 			"runoff": null,
-      "product": "ground",
+      "product": "0",
       "etTable": null
 		},
 		"cistern":{
 			"area": 1,
 			"cda": ["seven"],
 			"runoff": null,
-			"product": "cistern",
+			"product": "2",
       "etTable": null
 		}
   },
 	"products": {
-    "ground":{
+    "0":{
+      "id": 0,
+      "name": "ground",
       "type":"receiving",
 		  "slope":0,
   		"thickness":0,
       "capacity":1,
       "readMe": "ground is always included"
     },
-    "drain":{
+    "1":{
+      "id": 1,
+      "name": "drain",
       "type":"receiving",
 		  "slope":0,
   		"thickness":0,
       "capacity":1,
       "readMe": "drain is always included"
     },
-    "cistern":{
+    "2":{
+      "id": 2,
+      "name": "cistern",
       "type":"receiving",
 		  "slope":0,
   		"thickness":0,
       "capacity":1,
       "readMe": "cistern is always included"
     },
-    "purpleRoof": {
+    "3": {
+      "id": 3,
+      "name": "purpleRoof",
       "type":"Rock Wool",
 		  "slope":0.02,
   		"thickness":2,
@@ -147,7 +156,8 @@
     }
   },
 	"et": {
-    "sunny": {
+    "0": {
+      "id": 0,
 		  "name":"Typical",
 		  "location":"MD",
       "exposure":"Sunny",

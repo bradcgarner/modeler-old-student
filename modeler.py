@@ -5,6 +5,7 @@ import collections
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as mpatches
+import time # used for runtime only
 
 with open('inputs.json') as f:
   data = json.load(f)
@@ -38,7 +39,7 @@ class Event:
     pctEt = self.et / self.input
 
     retDeltaRain = self.retStop - self.retStart
-    minsDeltaRain = self.threshold - self.start
+    minsDeltaRain = self.stop - self.start
     retRateRain = retDeltaRain / minsDeltaRain
 
     retDeltaInitDry = self.retStop - self.retThreshold
@@ -613,6 +614,8 @@ class Surface:
           eventwriter.writerow(self.events[event].eventSummaryHeader)
         eventwriter.writerow(self.events[event].eventSummary)
 
+# start time
+startTime = time.time()
 # create and populate dictionary
 surfaces = {}
 rainTable = data['events']['rainIntensity']
@@ -655,4 +658,5 @@ for event in rainTable:
 for surface in surfaces:
   surfaces[surface].outputGraphs()
   surfaces[surface].outputEventTables()
-    
+
+print('The script took {0} seconds!'.format(time.time() - startTime))
