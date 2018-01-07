@@ -639,14 +639,15 @@ for surface in surfaces:
 
 # cycle through each surface for each event in rainTable; order doesn't matter, as long as all cycles 1 occur before all cycles 2, etc.
 for event in rainTable:
+  # create dictionary to store runoff, restarts each event(cycle)
   runoff = collections.defaultdict(int)
   for surface in surfaces:
     filename = surface + 'Model.csv'
     if surfaces[surface].type != 'receiving':
-      surfaces[surface].cycle(event,runoff[surface])
+      surfaces[surface].cycle(event,runoff[surface]) # inputs: (rainIntensity, runoffRawVol); runoff is from prior run
       runoff[surfaces[surface].runoffToName] += surfaces[surface].runoffRawVol
     else:
-      surfaces[surface].receive(runoff[surface])
+      surfaces[surface].receive(runoff[surface]) # increment the runoff in the persistent object for use in the next run
     with open(filename, 'a') as csvfile:
       modelwriter = csv.writer(csvfile, delimiter=',',
                               quotechar='|', quoting=csv.QUOTE_MINIMAL)

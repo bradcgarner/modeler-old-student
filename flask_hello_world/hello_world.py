@@ -43,12 +43,10 @@ if __name__ == '__main__': # __main__ is name assigned by py if file is run on i
   # app.run(host=environ['IP'], port=int(environ['PORT']))
 
 # route parameters DONE
-# query parameters PROGRESS
-# request body PROGRESS
-# parse JSON from request body PROGRESS
+# query parameters DONE
+# request body DONE
+# parse JSON from request body DONE
 # format JSON to send in response body DONE
-# ISSUES: 
-#   Decorators
 
 # config - env variables, db path, etc.
 # error handling
