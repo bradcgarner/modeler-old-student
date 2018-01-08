@@ -6,8 +6,11 @@ from flask import request, Response, url_for # guessed at this
 from os import environ # operating system... how to use .env?
 import json
 
-app = Flask(__name__)  # special variable for name of module calling this file
+app = Flask(__name__, static_url_path='')  # special variable for name of module calling this file
 
+@app.route('/')
+def serve_static():
+  return app.send_static_file("index.html")
 
 @app.route('/api/initialize', methods=['GET'])
 def initialize_get():
