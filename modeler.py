@@ -161,7 +161,7 @@ class Surface:
     self.capacity =     self.product['capacity'] # volume per 1 unit of area 
     self.type =         self.product['type']
     
-    if self.etTableName != None:
+    if self.etTableName is not None:
       self.etTable =    data['et'][self.etTableName] # key of product in list
     else:
       self.etTable =    None
@@ -585,7 +585,7 @@ class Surface:
     et =           self.totListEt
 
     fig, ax = plt.subplots() # ax = plt.subplots()[1] instead of fix... investigate...
-    ax.plot(time,rain, 'C1',label='rain') # x,y
+    ax.plot(time,rain, 'C1',label='rain') # x,y,color,label
     ax.plot(time,uncontrolled, 'C2',label='uncontrolled')
     ax.plot(time,controlled, 'C3',label='controlled')
     ax.plot(time,absorb, 'C4',label='absorb')

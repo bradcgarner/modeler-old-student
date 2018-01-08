@@ -12,6 +12,8 @@ app = Flask(__name__)  # special variable for name of module calling this file
 @app.route('/api/initialize', methods=['GET'])
 def initialize_get():
   '''return data to initialize app'''
+  # fetch from SQL
+  # catch error
   response = {
     'etTables': [
       {
@@ -32,6 +34,10 @@ def initialize_get():
 @app.route('/api/auth/login', methods=['POST'])
 def auth_login_post():
   '''login / create user session'''
+  # validate fields
+  # fetch user from SQL
+  # create auth token
+  # catch error
   received = {
     'username': 'string',
     'password': 'string',
@@ -53,6 +59,11 @@ def auth_login_post():
 @app.route('/api/users', methods=['POST'])
 def users_post():
   '''create new user'''
+  # validate fields
+  # hash password
+  # create new user in SQL
+  # return new user with id
+  # catch error
   received = {
     'username': 'string',
     'password': 'string',
@@ -73,6 +84,9 @@ def users_post():
 @app.route('/api/users/<id>', methods=['GET'])
 def users_get_id(id):
   '''get user by id'''
+  # search SQL for user by id
+  # return user
+  # catch error
   response = {
     'id': 0,
     'username': 'string',
@@ -90,10 +104,23 @@ def users_get_id(id):
 @app.route('/api/users/<id>', methods=['PUT'])
 def users_put_id(id):
   '''update user by id'''
+  # validate fields
+  # update user in SQL
+  # return updated user
+  # catch errors
+  request = {
+    'id': 0,
+    'username': 'string',
+    'firstName': 'string',
+    'lastName': 'string',
+    'organization': 'string',
+    'projects': [
+      0
+    ]
+  }
   response = {
     'id': 0,
     'username': 'string',
-    'authToken': 'string',
     'firstName': 'string',
     'lastName': 'string',
     'organization': 'string',
@@ -107,6 +134,10 @@ def users_put_id(id):
 @app.route('/api/projects', methods=['POST'])
 def projects_post():
   '''create project'''
+  # validate fields
+  # create new project in SQL
+  # return new project
+  # catch errors
   request = {
     'idUser': 0,
     'name': 'string',
@@ -127,6 +158,10 @@ def projects_post():
 @app.route('/api/projects/<id>', methods=['GET'])
 def projects_get_id(id):
   '''get project by id'''
+  # search SQL for project by id
+  # return found project
+    # joined with areas
+  # catch errors
   response = {
     'idUser': 0,
     'id': int(id),
@@ -193,11 +228,28 @@ def projects_get_id(id):
 @app.route('/api/projects/<id>/run', methods=['PUT'])
 def projects_run_id(id):
   '''run project calculations by id'''
+  request = {
+    'userId': 0
+  }
+  # search project and validate the project matches userId
+  # validate that all required project fields are completed
+  # run calculations in modeler.py
+  # respond with success
+  # catch errors
   return Response('success {}'.format(id), 200)
 
 @app.route('/api/projects/<id>', methods=['PUT'])
 def projects_put_id(id):
   '''update project by id'''
+  # search project and validate the project matches userId
+  # check request to see what type of request this is
+    # does this matter?
+    # except areas?
+  # validate data in fields
+  # update project in SQL
+  # return updated project
+    # do we need to worry about joining areas only some of the time?
+  # catch errors
   requestRequired = {
     'idUser': 0,
     'id': 0,
@@ -341,6 +393,9 @@ def projects_put_id(id):
 @app.route('/api/storms/<id>', methods=['GET'])
 def storms_get_id(id):
   '''get storm by id'''
+  # search SQL for storms by id
+  # return found storm
+  # catch errors
   response = [0,0,0,0]
   data = json.dumps(response)
   return Response(data, 200, mimetype='application/json')
@@ -348,6 +403,9 @@ def storms_get_id(id):
 @app.route('/api/storms', methods=['GET'])
 def storms_get_query():
   '''get storms by query parameters'''
+  # search storms by query parameters
+  # return list of found storms
+  # catch errors
   location = request.args.get('location')
   startMonth = request.args.get('startMonth')
   endMonth = request.args.get('endMonth')
